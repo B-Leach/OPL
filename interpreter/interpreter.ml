@@ -1,4 +1,5 @@
 exception Eval_error
+exception Type_error
 
 type exp =
   | True
@@ -9,13 +10,15 @@ type exp =
   | Plus of exp * exp
   | Mult of exp * exp
 
-  let rec step (e : exp) = match e with
-    | If(e1, e2, e3) -> (match e1 with
+type typ = TBool | TInt
+
+let rec step (e : exp) = match e with
+  | If(e1, e2, e3) -> (match e1 with
                           | True -> e2
                           | False -> e3
                           | Num(n1) -> raise Eval_error
                           | _ -> If(step e1, e2, e3))
-    | Plus(e1, e2) -> (match e1 with
+  | Plus(e1, e2) -> (match e1 with
                         | True -> raise Eval_error
                         | False -> raise Eval_error
                         | Num(n1) -> (match e2 with
@@ -24,7 +27,7 @@ type exp =
                                         | Num(n2) -> Num(n1 + n2)
                                         | _ -> Plus(e1, step e2))
                         | _ -> Plus(step e1, e2))
-    | Mult(e1, e2) -> (match e1 with
+  | Mult(e1, e2) -> (match e1 with
                         | True -> raise Eval_error
                         | False -> raise Eval_error
                         | Num(n1) -> (match e2 with
@@ -33,20 +36,31 @@ type exp =
                                         | Num(n2) -> Num(n1 * n2)
                                         | _ -> Mult(e1, step e2))
                         | _ -> Mult(step e1, e2))
-    | IsZero(e1) -> (match e1 with
+  | IsZero(e1) -> (match e1 with
                       | True -> raise Eval_error
                       | False -> raise Eval_error
                       | Num(n1) -> if n1 = 0 then True else False
                       | _ -> IsZero(step e1))
-    | _ -> raise Eval_error
+  | _ -> raise Eval_error
 
-  let rec multi_step (e : exp) = match e with
-    | True -> True
-    | False -> False
-    | Num(n1) -> Num(n1)
-    | _ -> multi_step(step(e))
+let rec multi_step (e : exp) = match e with
+  | True -> True
+  | False -> False
+  | Num(n1) -> Num(n1)
+  | _ -> multi_step(step(e))
 
-  let rec string_of_exp (e : exp) = match e with
+let rec type_check (e : exp) = match e with
+  | True -> TBool
+  | False -> TBool
+  | Num(n) -> TInt
+  | If(e1, e2, e3) -> if type_check e1 = TBool
+                      then (if type_check e2 = type_check e3 then type_check e2 else raise Type_error)
+                      else raise Type_error
+  | IsZero(e1) -> if type_check e1 = TInt then TBool else raise Type_error
+  | Plus(e1, e2) -> if type_check e1 = TInt then (if type_check e2 = TInt then TInt else raise Type_error) else raise Type_error
+  | Mult(e1, e2) -> if type_check e1 = TInt then (if type_check e2 = TInt then TInt else raise Type_error) else raise Type_error
+
+let rec string_of_exp (e : exp) = match e with
     | True -> "true"
     | False -> "false"
     | If(e1, e2, e3) -> "if " ^ string_of_exp e1 ^ " then " ^ string_of_exp e2
