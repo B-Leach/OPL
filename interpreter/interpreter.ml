@@ -23,7 +23,6 @@ type exp =
 
 type type_environment = (string * typ) list
 
-(* >/ *)
 let rec free_variables (e : exp) = match e with
   | True -> []
   | False -> []
@@ -38,7 +37,6 @@ let rec free_variables (e : exp) = match e with
                           | _ -> raise Substitution_error)
   | Apply(i1, i2) -> free_variables i1 @ free_variables i2
 
-(* >/ *)
 let rec substitution (e1 : exp) (x : string) (e2 : exp) = match e1 with
   | True -> True
   | False -> False
@@ -51,7 +49,6 @@ let rec substitution (e1 : exp) (x : string) (e2 : exp) = match e1 with
   | Lambda(s1, t1, i1) -> if s1 = x then Lambda(s1, t1, i1) else Lambda(s1, t1, substitution i1 x e2)
   | Apply(i1, i2) -> Apply (substitution i1 x e2, substitution i2 x e2)
 
-(* Add Var, Lambda, Apply *)
 let rec type_check (te : type_environment) (e : exp) = match e with
   | True -> TBool
   | False -> TBool
@@ -64,9 +61,7 @@ let rec type_check (te : type_environment) (e : exp) = match e with
   | Mult(e1, e2) -> if type_check te e1 = TInt then (if type_check te e2 = TInt then TInt else raise Type_error) else raise Type_error
   | Var(var) -> (match assoc_opt var te with
                   | None -> raise Type_error
-                  | _ -> assoc var te) (*(match te with
-                  | (var, typ) :: _ -> typ
-                  | _ -> raise Type_error)*)
+                  | _ -> assoc var te)
   | Lambda(s1, t1, i1) -> TArrow(t1, type_check ((s1,t1)::te) i1)
   | Apply(i1 ,i2) -> (match type_check te i1 with
                       | TArrow(typ1, typ2) -> if typ1 = type_check te i2
@@ -74,7 +69,6 @@ let rec type_check (te : type_environment) (e : exp) = match e with
                                               else raise Type_error
                       | _ -> raise Type_error)
 
-(* >/ *)
 let rec step (e : exp) = match e with
   | If(e1, e2, e3) -> (match e1 with
                           | True -> e2
@@ -112,7 +106,6 @@ let rec step (e : exp) = match e with
   | Apply( func, arg ) -> step( Apply( step(func), arg) )
   | _ -> raise Eval_error
 
-(* >/ *)
 let rec multi_step (e : exp) = match e with
   | True -> True
   | False -> False
@@ -120,84 +113,3 @@ let rec multi_step (e : exp) = match e with
   | Var(var) -> Var(var)
   | Lambda(var, typ, body) -> Lambda(var, typ, body)
   | _ -> multi_step(step(e))
-
-
-
-(*let rec string_of_exp (e : exp) = match e with
-    | True -> "true"
-    | False -> "false"
-    | If(e1, e2, e3) -> "if " ^ string_of_exp e1 ^ " then " ^ string_of_exp e2
-        ^ " else " ^ string_of_exp e3
-    | Num(n1) -> string_of_int n1
-    | IsZero(e1) -> "(isZero " ^ string_of_exp e1 ^ ")"
-    | Plus(e1, e2) -> "(" ^ string_of_exp e1 ^ " + " ^ string_of_exp e2 ^ ")"
-    | Mult(e1, e2) -> "(" ^ string_of_exp e1 ^ " * " ^ string_of_exp e2 ^ ")"*)
-(*let () =
-  print_endline( string_of_exp( (multi_step True) ));;
-  print_endline( string_of_exp( (multi_step False) ));;
-  print_endline( string_of_exp( (multi_step (Num 0)) ));;
-  print_endline( string_of_exp( (multi_step (IsZero (Num 0))) ));;
-  print_endline( string_of_exp( (multi_step (IsZero (Plus (Num 1, Num 1)))) ));;
-  print_endline( string_of_exp( (multi_step (IsZero (Plus (Plus (Num 2, Num (-1)), Num 1)))) ));;
-  print_endline( string_of_exp( (multi_step (Plus (Plus (Num (-1), Num 1), Plus (Num (-1), Num 1)))) ));;
-  print_endline( string_of_exp( (multi_step (Plus (Num (-1), Plus (Mult (Num 2, Num 2), Num 1)))) ));;
-  print_endline( string_of_exp( (multi_step (Plus (Plus (Plus (Num 2, Num (-1)), Num 1), Num (-1)))) ));;
-  (* print_endline( string_of_exp( (multi_step (Plus (IsZero (Plus (Num (-1), Num 1)), Num 1))) ));; *)
-  (* print_endline( string_of_exp( (multi_step (IsZero (If (IsZero (Num 0), True, Num 0)))) ));; *)
-  (* print_endline( string_of_exp( (multi_step
-                   (IsZero
-                      (If
-                         ( IsZero (Mult (Num 5, Num 0))
-                         , If (False, Num 0, IsZero (Plus (Num (-1), Num 0)))
-                         , Num 0 )))) ));; *)
-  print_endline( string_of_exp( (multi_step (If (IsZero (Plus (Num (-1), Num 1)), Num 2, True))) ));;
-  print_endline( string_of_exp( (multi_step
-                   (If
-                      ( If (IsZero (Mult (Plus (Num 1, Num (-1)), Num 1)), False, True)
-                      , Mult (Num 1, Num 2)
-                      , True ))) ));;
-  print_endline( string_of_exp( (multi_step
-                   (If
-                      ( If (IsZero (Mult (Num 0, Num 0)), IsZero (Num 2), Num 0)
-                      , Mult (Num 2, Mult (Num 1, Num 1))
-                      , Plus
-                          ( Plus
-                              ( Plus
-                                  ( Plus (If (IsZero (Num 0), Num 1, Num 0), Num (-1))
-                                  , Num 1 )
-                              , Num (-1) )
-                          , Num 1 ) ))) ));;
-  print_endline( string_of_exp( (multi_step
-                   (If
-                      ( True
-                      , If (True, Mult (If (False, Num 0, Num 1), Num 1), Num 5)
-                      , Plus (Mult (Num 4, Num 1), Num 1) ))) ));;
-  print_endline( string_of_exp( (multi_step
-                   (If
-                      ( IsZero (If (IsZero (Plus (Num (-1), Num 2)), Num 0, Num 1))
-                      , If
-                          ( True
-                          , If (False, Mult (Num 0, Num 6), Plus (Num 0, Num 1))
-                          , Num 5 )
-                      , Num 5 ))) ));;
-  (* print_endline( string_of_exp( (multi_step
-                   (If
-                      ( IsZero (Plus (Num (-1), Plus (Num 1, Plus (Num (-1), Num 1))))
-                      , IsZero True
-                      , Num 1 ))) ));; *)
-  print_endline( string_of_exp( (multi_step
-                   (Plus
-                      ( Num 1
-                      , Plus
-                          ( Num (-1)
-                          , If
-                              ( IsZero (Plus (Num 1, If (True, Num 1, Num 2)))
-                              , Plus (Num 1, Num 2)
-                              , Mult (Num 2, Num 2) ) ) ))) ));;
-  (* print_endline( string_of_exp( (multi_step
-                   (Plus
-                      ( Num (-1)
-                      , If
-                          ( IsZero (Plus (Num 5, Num (-4)))
-                          , Mult (Num 123, Plus (Num 5, Num (-4)))
-                          , IsZero (Num 0) ) ))) ));; *)*)
