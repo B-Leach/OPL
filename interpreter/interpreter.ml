@@ -1,3 +1,5 @@
+open List
+
 exception Eval_error
 exception Type_error
 exception Substitution_error
@@ -60,16 +62,19 @@ let rec type_check (te : type_environment) (e : exp) = match e with
   | IsZero(e1) -> if type_check te e1 = TInt then TBool else raise Type_error
   | Plus(e1, e2) -> if type_check te e1 = TInt then (if type_check te e2 = TInt then TInt else raise Type_error) else raise Type_error
   | Mult(e1, e2) -> if type_check te e1 = TInt then (if type_check te e2 = TInt then TInt else raise Type_error) else raise Type_error
-  | Var(var) -> (match te with
-                  | a :: (var, typ) :: t -> typ
-                  | _ -> raise Eval_error)
+  | Var(var) -> (match assoc_opt var te with
+                  | None -> raise Type_error
+                  | _ -> assoc var te) (*(match te with
+                  | (var, typ) :: _ -> typ
+                  | _ -> raise Type_error)*)
   | Lambda(s1, t1, i1) -> TArrow(t1, type_check ((s1,t1)::te) i1)
-  | Apply(i1 ,i2) -> match type_check te i1 with
-                      | TArrow(typ1, typ2) -> if typ2 = type_check te i2
+  | Apply(i1 ,i2) -> (match type_check te i1 with
+                      | TArrow(typ1, typ2) -> if typ1 = type_check te i2
                                               then typ2
-                                              else raise Eval_error
+                                              else raise Type_error
+                      | _ -> raise Type_error)
 
-(* Add Apply >/ *)
+(* >/ *)
 let rec step (e : exp) = match e with
   | If(e1, e2, e3) -> (match e1 with
                           | True -> e2
