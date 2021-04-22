@@ -20,6 +20,7 @@ type exp =
   | Var of string
   | Lambda of string * typ * exp
   | Apply of exp * exp
+  | LambdaRec of string * typ * typ * string * exp
 
 type type_environment = (string * typ) list
 
@@ -36,6 +37,9 @@ let rec free_variables (e : exp) = match e with
                           | a :: s1 :: b -> a :: b
                           | _ -> raise Substitution_error)
   | Apply(i1, i2) -> free_variables i1 @ free_variables i2
+  | LambdaRec(s1, t1, t2, s2, e1) -> (match (free_variables e1) with
+                                      | a :: s1 :: b :: s2 :: c -> a :: b :: c
+                                      | _ -> raise Substitution_error)
 
 let rec substitution (e1 : exp) (x : string) (e2 : exp) = match e1 with
   | True -> True
@@ -48,6 +52,12 @@ let rec substitution (e1 : exp) (x : string) (e2 : exp) = match e1 with
   | Var(var) -> if var = x then e2 else Var(var)
   | Lambda(s1, t1, i1) -> if s1 = x then Lambda(s1, t1, i1) else Lambda(s1, t1, substitution i1 x e2)
   | Apply(i1, i2) -> Apply (substitution i1 x e2, substitution i2 x e2)
+  | LambdaRec(s1, t1, t2, s2, i1) -> (if s1 = x
+                                      then LambdaRec(s1, t1, t2, s2, i1)
+                                      else (if s2 = x
+                                            then LambdaRec(s1, t1, t2, s2, i1)
+                                            else LambdaRec(s1, t1, t2, s2, substitution i1 x e2)))
+
 
 let rec type_check (te : type_environment) (e : exp) = match e with
   | True -> TBool
@@ -68,6 +78,7 @@ let rec type_check (te : type_environment) (e : exp) = match e with
                                               then typ2
                                               else raise Type_error
                       | _ -> raise Type_error)
+  | LambdaRec(s1, t1, t2, s2, e1) -> TArrow(t1, t2)
 
 let rec step (e : exp) = match e with
   | If(e1, e2, e3) -> (match e1 with
@@ -103,6 +114,7 @@ let rec step (e : exp) = match e with
   | Apply( Lambda(var, typ, body), (Num(n1)) ) -> substitution body var (Num(n1))
   | Apply( Lambda(var1, typ1, body1), (Lambda(var2, typ2, body2)) ) -> substitution body1 var1 (Lambda(var2, typ2, body2))
   | Apply( Lambda(var, typ, body), arg ) -> step(Apply( Lambda(var, typ, body), step(arg) ))
+  | Apply( LambdaRec(f, typ1, typ2, var, body), arg) -> substitution (substitution body var arg) f (LambdaRec(f, typ1, typ2, var, body))
   | Apply( func, arg ) -> step( Apply( step(func), arg) )
   | _ -> raise Eval_error
 
@@ -112,4 +124,5 @@ let rec multi_step (e : exp) = match e with
   | Num(n1) -> Num(n1)
   | Var(var) -> Var(var)
   | Lambda(var, typ, body) -> Lambda(var, typ, body)
+  | LambdaRec(s1, t1, t2, s2, e1) -> LambdaRec(s1, t1, t2, s2, e1)
   | _ -> multi_step(step(e))
