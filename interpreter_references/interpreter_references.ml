@@ -161,6 +161,7 @@ let rec step (e : exp) (m : memory) : (exp * memory ) = match e with
   | Apply( Lambda(var, typ, body), True ) -> (substitution body var True, m)
   | Apply( Lambda(var, typ, body), False ) -> (substitution body var False, m)
   | Apply( Lambda(var, typ, body), (Num(n1)) ) -> (substitution body var (Num(n1)), m)
+  | Apply( Lambda(var, typ, body), (Label(n)) ) -> (substitution body var (Label(n)), m)
   | Apply( Lambda(var1, typ1, body1), (Lambda(var2, typ2, body2)) ) -> (substitution body1 var1 (Lambda(var2, typ2, body2)), m)
   | Apply( Lambda(var, typ, body), arg ) -> (match step arg m with
                                               | (ne, nm) -> step (Apply(Lambda(var, typ, body), ne)) nm)
